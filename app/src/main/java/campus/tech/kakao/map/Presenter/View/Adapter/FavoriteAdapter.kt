@@ -25,7 +25,7 @@ class FavoriteAdapter(
             deleteFavorite = itemView.findViewById<ImageView>(R.id.deleteFavorite)
 
             deleteFavorite.setOnClickListener {
-                onClickDelete.invoke(placeName?.text.toString())
+                onClickDelete.invoke(placeName.text.toString())
             }
         }
 
