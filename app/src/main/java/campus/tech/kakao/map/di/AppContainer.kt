@@ -21,7 +21,6 @@ class AppContainer(context: Context) {
         .build()
         .create(RetrofitService::class.java)
     val repository = PlaceRepositoryImpl(
-        placeDaoImpl, favoriteDao, retrofitService,
-        DocToPlaceMapper(), HttpUrlConnect()
+        placeDaoImpl, favoriteDao, retrofitService, HttpUrlConnect()
     )
 }

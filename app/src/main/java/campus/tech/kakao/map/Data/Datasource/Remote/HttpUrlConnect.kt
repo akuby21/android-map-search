@@ -3,7 +3,10 @@ package campus.tech.kakao.map.Data.Datasource.Remote
 import campus.tech.kakao.map.BuildConfig
 import campus.tech.kakao.map.Data.Datasource.Remote.Response.Document
 import campus.tech.kakao.map.Data.Datasource.Remote.Response.Meta
+import campus.tech.kakao.map.Data.Datasource.Remote.Response.Response
+import campus.tech.kakao.map.Data.Datasource.Remote.Response.SameName
 import campus.tech.kakao.map.Data.Datasource.Remote.Response.SearchResponse
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.BufferedWriter
@@ -15,52 +18,70 @@ import javax.net.ssl.HttpsURLConnection
 
 class HttpUrlConnect : RemoteService{
 
-    override fun getPlaceResponse(query: String): List<Document> {
-        val result = mutableListOf<Document>()
-        var response: SearchResponse? = null
+    override fun getPlaceResponse(query: String) : List<Document>{
+        val body = mutableMapOf("query" to query, "page" to START_PAGE.toString())
+        val info = mapOf("method" to "GET", "type" to "Search")
 
+        return handleResponse(body, info) as List<Document>
+    }
+
+    private fun handleResponse(body: MutableMap<String,String>, info : Map<String,String>): List<Any> {
+        val result = mutableListOf<Document>()
+        var response: Response? = null
+        var pageCount : Int = 0
         val thread = Thread {
-            response = request(query, START_PAGE)
+            response = request(body, info)
         }
         thread.start()
         thread.join()
 
-        response?.apply {
-            result.addAll(this.documents)
-            val pageCount : Int = this.meta.pageableCount ?: 0
+        when(response){
+            is SearchResponse -> {
+                (response as SearchResponse).documents.let {
+                    result.addAll(it ?: emptyList())
+                }
+                pageCount = (response as SearchResponse).meta?.pageableCount ?: 0
+            }
+            else -> {}
+        }
 
-            if (pageCount > MAX_PAGE) {
-                val threads = mutableListOf<Thread>()
-
-                for (i in START_PAGE + 1..MAX_PAGE) {
-                    val t = Thread {
-                        request(query, i)?.apply {
-                            result.addAll(this.documents)
+        if (pageCount > MAX_PAGE) {
+            val threads = mutableListOf<Thread>()
+            for (i in START_PAGE + 1..MAX_PAGE) {
+                body["page"] = i.toString()
+                val t = Thread {
+                    request(body, info)?.apply {
+                        when(this){
+                            is SearchResponse -> (this as SearchResponse).documents?.let { result.addAll(it) }
+                            else -> {}
                         }
                     }
-                    threads.add(t)
-                    t.start()
                 }
-
-                threads.forEach { it.join() }
+                threads.add(t)
+                t.start()
             }
+
+            threads.forEach { it.join() }
         }
+
 
         return result
     }
 
 
-    private fun request(query: String, page: Int): SearchResponse? {
+
+    private fun request(body : Map<String,String>,info : Map<String,String>): Response? {
         val url = URL(BASE + URL)
         val conn = url.openConnection() as HttpsURLConnection
 
         conn.setReadTimeout(READ_TIMEOUT)
         conn.setConnectTimeout(CONNECT_TIMEOUT)
-        conn.setRequestMethod("GET")
+        conn.setRequestMethod(info["method"])
         conn.setDoOutput(true)
         conn.setRequestProperty("authorization", KEY)
 
-        val body = "query=${query}&page=${page}"
+
+        val body = body.entries.joinToString("&") { "${it.key}=${it.value}" }
 
         val os = conn.outputStream
         val writer = BufferedWriter(
@@ -73,25 +94,69 @@ class HttpUrlConnect : RemoteService{
 
         val responseCode = conn.getResponseCode()
 
-        when (responseCode) {
+        return when (responseCode) {
             HttpsURLConnection.HTTP_OK -> {
                 val br = BufferedReader(InputStreamReader(conn.inputStream))
-                while (true) {
-                    val line = br.readLine() ?: break
-
-                    val jsonObject = JSONObject(line)
-                    val meta = Meta.fromJSON(jsonObject.getJSONObject("meta"))
-                    val document = Document.fromJSON(jsonObject.getJSONArray("documents"))
-
-                    return SearchResponse(document,meta)
-                }
+                onSuccess(br.readLine(),info["type"])
             }
-
-            else -> {
-                return null
-            }
+            else -> null
         }
-        return null
+    }
+
+    private fun onSuccess(json : String, type: String?) : Response?{
+        val jsonObject = JSONObject(json)
+        return when(type){
+            "Search" -> {
+                val meta = parseMeta(jsonObject.getJSONObject("meta"))
+                val document = parseDocument(jsonObject.getJSONArray("documents"))
+
+                SearchResponse(document,meta)
+            }
+            else -> null
+        }
+    }
+
+    private fun parseDocument(documentJsonArray: JSONArray) : List<Document>{
+        val result = mutableListOf<Document>()
+        for (i in 0..<documentJsonArray.length()) {
+            val documentJson = documentJsonArray.getJSONObject(i)
+            result.add(
+                Document(
+                    documentJson.get("address_name").toString(),
+                    documentJson.get("category_group_code").toString(),
+                    documentJson.get("category_group_name").toString(),
+                    documentJson.get("category_name").toString(),
+                    documentJson.get("distance").toString(),
+                    documentJson.get("id").toString(),
+                    documentJson.get("phone").toString(),
+                    documentJson.get("place_name").toString(),
+                    documentJson.get("place_url").toString(),
+                    documentJson.get("road_address_name").toString(),
+                    documentJson.get("x").toString(),
+                    documentJson.get("y").toString()
+                )
+            )
+        }
+        return result
+    }
+    private fun parseMeta(metaJsonObject : JSONObject) : Meta{
+        val sameName = parseSameName(
+            metaJsonObject.getJSONObject("same_name")
+        )
+
+        return Meta(
+            metaJsonObject.get("is_end") as Boolean,
+            metaJsonObject.get("pageable_count") as Int,
+            sameName,
+            metaJsonObject.get("total_count") as Int
+        )
+    }
+    private fun parseSameName(sameNameJsonObject : JSONObject) : SameName {
+        return SameName(
+            sameNameJsonObject.get("keyword").toString(),
+            sameNameJsonObject.getJSONArray("region").toString(),
+            sameNameJsonObject.get("selected_region").toString()
+        )
     }
 
     companion object {
