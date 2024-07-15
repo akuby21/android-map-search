@@ -21,5 +21,14 @@ enum class PlaceCategory {
                 ELSE -> "기타"
             }
         }
+
+        fun groupCodeToPlaceCategory(code : String) : PlaceCategory {
+            when(code){
+                "CE7" -> return PlaceCategory.CAFE
+                "PM9" -> return PlaceCategory.PHARMACY
+                "FD6" -> return PlaceCategory.RESTAURANT
+                else -> return PlaceCategory.ELSE
+            }
+        }
     }
 }

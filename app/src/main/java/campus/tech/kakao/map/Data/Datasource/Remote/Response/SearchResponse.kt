@@ -1,5 +1,8 @@
 package campus.tech.kakao.map.Data.Datasource.Remote.Response
 
+import campus.tech.kakao.map.Domain.Model.Place
+import campus.tech.kakao.map.Domain.Model.PlaceCategory
+import campus.tech.kakao.map.Domain.Model.PlaceCategory.Companion.groupCodeToPlaceCategory
 import com.google.gson.annotations.SerializedName
 import org.json.JSONArray
 import org.json.JSONObject
@@ -87,4 +90,12 @@ data class Document(
             return result
         }
     }
+}
+
+fun Document.toVO() : Place {
+    return Place(
+        this.placeName ?: "",
+        this.addressName ?: "",
+        groupCodeToPlaceCategory(this.categoryGroupCode)
+    )
 }

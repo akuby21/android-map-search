@@ -6,7 +6,6 @@ import campus.tech.kakao.map.Data.Datasource.Local.Dao.PlaceDaoImpl
 import campus.tech.kakao.map.Data.Datasource.Local.SqliteDB
 import campus.tech.kakao.map.Data.Datasource.Remote.HttpUrlConnect
 import campus.tech.kakao.map.Data.Datasource.Remote.RetrofitService
-import campus.tech.kakao.map.Data.Mapper.DocToPlaceMapper
 import campus.tech.kakao.map.Domain.Model.PlaceContract
 import campus.tech.kakao.map.Data.PlaceRepositoryImpl
 import retrofit2.Retrofit

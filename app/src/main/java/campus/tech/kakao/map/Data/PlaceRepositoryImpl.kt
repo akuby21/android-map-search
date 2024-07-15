@@ -4,8 +4,8 @@ import campus.tech.kakao.map.Data.Datasource.Local.Dao.FavoriteDao
 import campus.tech.kakao.map.Data.Datasource.Local.Dao.PlaceDao
 import campus.tech.kakao.map.Data.Datasource.Remote.RemoteService
 import campus.tech.kakao.map.Data.Datasource.Remote.Response.Document
+import campus.tech.kakao.map.Data.Datasource.Remote.Response.toVO
 import campus.tech.kakao.map.Data.Datasource.Remote.RetrofitService
-import campus.tech.kakao.map.Data.Mapper.EntityToModelMapper
 import campus.tech.kakao.map.Domain.PlaceRepository
 import campus.tech.kakao.map.Domain.Model.Place
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +15,6 @@ class PlaceRepositoryImpl(
     private val placeDao: PlaceDao,
     private val favoriteDao: FavoriteDao,
     private val retrofitService: RetrofitService,
-    private val docToPlaceMapper: EntityToModelMapper<Document, Place>,
     private val httpUrlConnect: RemoteService
 ) : PlaceRepository {
 
@@ -48,7 +47,9 @@ class PlaceRepositoryImpl(
     override fun getPlaceByNameHTTP(name : String) : List<Place>{
         val places = mutableListOf<Place>()
         httpUrlConnect.getPlaceResponse(name).forEach{
-            places.add(docToPlaceMapper.map(it))
+            places.add(
+                it.toVO()
+            )
         }
         return places
     }
@@ -64,7 +65,9 @@ class PlaceRepositoryImpl(
                 when (req.code()) {
                     200 -> {
                         req.body()?.documents?.forEach {
-                            placeList.add(docToPlaceMapper.map(it))
+                            placeList.add(
+                                it.toVO()
+                            )
                         }
                     }
                     else -> {}
